@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Language Qlookup",
+  "version": "1.0",
+  "description": "Quickly look up the meaning of word from youtube caption",
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
