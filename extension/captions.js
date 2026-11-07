@@ -87,7 +87,7 @@
       } else if (current && !previousAt) {
         previousAt = performance.now();
       }
-      onLayout();
+      onLayout(caption);
     }
 
     function getLookup(event) {

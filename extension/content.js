@@ -2,7 +2,8 @@
   if (window.__qlookupInitialized) return;
   window.__qlookupInitialized = true;
 
-  const {observeCaptions, showPopup, closePopup, isPopupElement, updatePopupPosition} = window.Qlookup;
+  const {observeCaptions, showPopup, closePopup, isPopupElement, updatePopupPosition,
+    closeOnCaptionChange} = window.Qlookup;
   let hover;
   const clearHover = () => hover?.remove();
   const hiddenClass = "language-qlookup-hide-captions";
@@ -47,9 +48,10 @@
   document.addEventListener("yt-navigate-finish", checkCaptionLanguage);
   refreshCaptionSetting();
 
-  const captions = observeCaptions(() => {
+  const captions = observeCaptions(caption => {
     clearHover();
     checkCaptionLanguage();
+    closeOnCaptionChange(caption);
     updatePopupPosition();
   }, closePopup);
 
@@ -97,13 +99,11 @@
   document.addEventListener("click", event => {
     if (!(event.target instanceof Element) || isPopupElement(event.target)) return;
     const selection = captions.getLookup(event);
-    if (!selection) {
-      closePopup();
-      return;
-    }
+    if (!selection) return;
     event.stopPropagation();
-    selection.anchor.closest("#movie_player")?.querySelector("video")?.pause();
-    showPopup(selection, captions.getAnchor, signal => captions.readPassage(selection, signal));
+    const video = selection.anchor.closest("#movie_player")?.querySelector("video");
+    video?.pause();
+    showPopup(selection, captions.getAnchor, signal => captions.readPassage(selection, signal), video);
   }, true);
 
   document.addEventListener("keydown", async event => {

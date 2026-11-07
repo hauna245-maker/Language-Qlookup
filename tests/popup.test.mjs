@@ -44,9 +44,9 @@ test("an older response cannot overwrite the currently selected word", async () 
     navigator: {clipboard: {writeText: async text => { copied = text; }}},
   });
   const anchor = {isConnected: true, getClientRects: () => [1], getBoundingClientRect: () => ({})};
-  const select = (word, waitForNext) => window.Qlookup.showPopup({anchor, lookup: {
+  const select = (word, waitForNext, video) => window.Qlookup.showPopup({anchor, lookup: {
     word, caption: word, offset: 0, earlier: "First caption", before: "Second caption",
-  }}, () => anchor, waitForNext);
+  }}, () => anchor, waitForNext, video);
   const answer = (coreMeaning, expression = "", expressionMeaning = "", inContext = "") => ({
     ok: true, value: {partOfSpeech: "noun", coreMeaning, expression, expressionMeaning, inContext},
   });
@@ -79,13 +79,14 @@ test("an older response cannot overwrite the currently selected word", async () 
   assert.equal(copied, "First caption Second caption new Fourth caption");
   await controls.children[1].listeners.click();
   assert.equal(copied, "new · noun\n\nCore meaning\nNew meaning");
-  assert.equal(new URL(controls.children[2].href).searchParams.get("q"), "First caption Second caption new Fourth caption");
   await controls.children[4].listeners.click();
   assert.match(copied, /\[new\]/);
   assert.equal(copied, "Explain this English word or expression: new\n\nContext:\nFirst caption Second caption [new] Fourth caption");
+  assert.equal(new URL(controls.children[2].href).searchParams.get("q"), copied);
   assert.equal(requests.length, 2);
 
-  select("apple");
+  const video = new EventTarget();
+  select("apple", undefined, video);
   requests[2].resolve(answer("A fruit.", "bad apple", "A person who causes trouble in a group.", "The speaker sees him as a bad influence."));
   await setImmediate();
   const [, appleReading, actions] = body.children[0].children[0].children;
@@ -95,4 +96,11 @@ test("an older response cannot overwrite the currently selected word", async () 
   assert.equal(contextual.hidden, false);
   await actions.children[1].listeners.click();
   assert.match(copied, /Core meaning\nA fruit\.\n\nExpression: bad apple\n.*\n\nIn this context\n/);
+  window.Qlookup.closeOnCaptionChange("apple");
+  assert.equal(body.children.length, 1);
+  video.dispatchEvent(new Event("play"));
+  assert.equal(body.children.length, 0);
+  select("apple");
+  window.Qlookup.closeOnCaptionChange("orange");
+  assert.equal(body.children.length, 0);
 });

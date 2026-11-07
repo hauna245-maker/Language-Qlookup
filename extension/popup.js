@@ -30,12 +30,19 @@
   function closePopup() {
     if (!current) return false;
     current.wait?.abort();
+    current.video?.removeEventListener("play", closePopup);
     current.observer.disconnect();
     current.root.remove();
     current = null;
     cancelAnimationFrame(frame);
     frame = 0;
     return true;
+  }
+
+  function closeOnCaptionChange(caption) {
+    if (!current || !caption) return;
+    const selectedCaption = current.selection.caption.trim().replace(/\s+/gu, " ");
+    if (caption !== selectedCaption) closePopup();
   }
 
   function updatePopupPosition() {
@@ -124,7 +131,7 @@
     updatePopupPosition();
   }
 
-  function showPopup({anchor, lookup: selection}, getAnchor, readPassage) {
+  function showPopup({anchor, lookup: selection}, getAnchor, readPassage, video) {
     if (current?.anchor === anchor && ["word", "caption", "offset", "before", "earlier"]
       .every(field => current.selection[field] === selection[field])) return;
     closePopup();
@@ -229,7 +236,15 @@
         .filter(Boolean).join(" ").replaceAll("\\", "").trim().replace(/\s+/gu, " ");
     }
     function updateSearch() {
-      search.href = "https://www.google.com/search?q=" + encodeURIComponent(captionContext(lookup.caption));
+      search.href = "https://www.google.com/search?q=" + encodeURIComponent(aiPrompt());
+    }
+    function aiPrompt() {
+      const marked = lookup.caption.slice(0, lookup.offset) + "[" + lookup.word + "]" +
+        lookup.caption.slice(lookup.offset + lookup.word.length);
+      return [
+        "Explain this English word or expression: " + lookup.word.replaceAll("\\", ""),
+        "Context:\n" + captionContext(marked),
+      ].join("\n\n");
     }
     async function copyText(text) {
       try {
@@ -255,15 +270,7 @@
         inContext && "In this context\n" + inContext,
       ].filter(Boolean).join("\n\n"));
     });
-    copy.addEventListener("click", () => {
-      const marked = lookup.caption.slice(0, lookup.offset) + "[" + lookup.word + "]" +
-        lookup.caption.slice(lookup.offset + lookup.word.length);
-      const prompt = [
-        "Explain this English word or expression: " + lookup.word.replaceAll("\\", ""),
-        "Context:\n" + captionContext(marked),
-      ].join("\n\n");
-      return copyText(prompt);
-    });
+    copy.addEventListener("click", () => copyText(aiPrompt()));
     settings.addEventListener("click", async () => {
       try {
         const response = await chrome.runtime.sendMessage({type: "qlookup:open-options"});
@@ -293,8 +300,9 @@
     if (masthead) observer.observe(masthead);
 
     const view = {root, body, reading, status, partOfSpeech, coreMeaning, expressionTitle, expressionMeaning,
-      inContext, copyResult, regenerate, observer, anchor, getAnchor, lookup, selection};
+      inContext, copyResult, regenerate, observer, anchor, getAnchor, lookup, selection, video};
     current = view;
+    video?.addEventListener("play", closePopup);
     updateSearch();
     regenerate.addEventListener("click", () => load(view, true));
     if (readPassage) {
@@ -323,7 +331,7 @@
   window.addEventListener("scroll", updatePopupPosition, true);
   document.addEventListener("fullscreenchange", updatePopupPosition);
   Object.assign(window.Qlookup, {
-    showPopup, closePopup, updatePopupPosition,
+    showPopup, closePopup, updatePopupPosition, closeOnCaptionChange,
     isPopupElement: element => Boolean(element.closest("#qlookup-popup")),
   });
 })();
