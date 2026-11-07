@@ -1,23 +1,36 @@
 # Language Qlookup
 
-## About
+Click a word in YouTube's English captions to get an explanation in English, with a Cambridge Dictionary link. Gemini receives the selected occurrence and nearby caption text when available.
 
-Language Qlookup is a Chrome extension for quickly looking up the meanings of words in YouTube captions.
+## Install and configure
 
-## Current features
+1. Open `chrome://extensions`, enable **Developer mode**, and choose **Load unpacked**. Select this project's `extension/` folder. After updating the code, reload the extension and refresh YouTube.
+2. In [Google AI Studio](https://aistudio.google.com/api-keys), verify that your project's quota tier is **Free Tier** and its Google Cloud project has no billing account linked. Create or copy an API key for that project. Model access and quota depend on your project. See [Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing) and the [billing guide](https://ai.google.dev/gemini-api/docs/billing/).
+3. In Chrome, open **Language Qlookup → Details → Extension options**. Enter the key, choose **Gemini 3.8 Flash** (default) or **Gemini 3.5 Flash-Lite**, and save. The saved key appears masked in the key field. Use **Show key** to reveal it there. To switch models, select a model and save. Enter a new key to replace it, or click **Delete saved key** to remove it.
+4. Turn on YouTube captions and click a word. Expand **Caption context** to see the surrounding text used for the explanation. Click outside or press Escape to close the popup.
 
-- Click a word in the captions to open a small popup.
-- Open the selected word's entry in Cambridge Dictionary from the popup.
+Chrome starts the background service worker automatically. It reads the key from persistent local extension storage and sends requests directly to Gemini. Keep the key out of source control. Local extension storage is not an encrypted vault, and the extension cannot verify whether your project has billing enabled. Google may use free-tier request data to improve its products.
 
-## Planned features
+## Files
 
-- Capture roughly three lines of captions around the line containing the selected word.
-- Send the selected word and its surrounding context to an AI model to generate an explanation of its meaning in context.
-- Display the explanation in a small popup above the selected word.
-- Let users expand the context to around 50 caption lines when needed to better understand a word, expression, or joke.
+| File | Purpose |
+| --- | --- |
+| `extension/manifest.json` | Tells Chrome what to load and which permissions the extension needs. |
+| `extension/background.js` | Handles settings, Gemini requests, quota pauses, and the explanation cache. |
+| `extension/captions.js` | Reads visible captions and finds the clicked word without editing YouTube's text nodes. |
+| `extension/content.js` | Connects clicks and Escape to the caption reader and popup. |
+| `extension/popup.js`, `extension/content.css` | Display and position the lookup popup. |
+| `extension/options.html`, `extension/options.js` | Display and save the key and model settings. |
+| `tests/` | Node tests for captions, Gemini requests, caching, and stale popup responses. |
 
-## Technology
+## Cache and limitations
 
-- Extension platform: Chrome Manifest V3
-- Interface: JavaScript, HTML, and CSS
-- Caption detection: DOM APIs and MutationObserver
+Up to 350 successful explanations persist across browser restarts. The selected occurrence, context, model, and prompt version determine cache reuse. **Regenerate** requests a fresh explanation and replaces the cached result on success. Quota errors pause new requests for the affected key and model.
+
+Caption lookup depends on YouTube's visible caption markup. The extension can use a recently displayed caption as context, so a split sentence may have incomplete context. Captions keep YouTube's original wording and line breaks.
+
+## Testing and troubleshooting
+
+Run `node --test tests/*.test.mjs` with Node.js 24 or newer. In Chrome, test word clicks, rapid caption changes, fullscreen, and navigation between videos. Check the YouTube console for the previous `NotFoundError`, including while hovering over captions. Compare with the extension disabled if the error recurs.
+
+For Gemini errors, open `chrome://extensions` and use Language Qlookup's **service worker** inspection link. Click **Regenerate** in the popup and look for `[Qlookup] Gemini request failed` in the worker console. The message contains only the model, error category, and elapsed time. In the worker's Network tab, the HTTP status and Timing tab help distinguish a Google response from a request that stayed pending. Avoid sharing request headers or HAR exports because they can contain the API key. If a timeout repeats, try Flash-Lite and check model access and quota in AI Studio.

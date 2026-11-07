@@ -1,12 +1,16 @@
 {
   "manifest_version": 3,
+  "minimum_chrome_version": "119",
   "name": "Language Qlookup",
-  "version": "1.0",
-  "description": "Quickly look up the meaning of word from youtube caption",
-  "content_scripts": [
-    {
-      "matches": ["https://www.youtube.com/*"],
-      "js": ["content.js"]
-    }
-  ]
+  "version": "1.2",
+  "description": "Look up English words and expressions in YouTube captions.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://generativelanguage.googleapis.com/*"],
+  "background": {"service_worker": "background.js", "type": "module"},
+  "options_ui": {"page": "options.html", "open_in_tab": true},
+  "content_scripts": [{
+    "matches": ["https://www.youtube.com/*"],
+    "css": ["content.css"],
+    "js": ["captions.js", "popup.js", "content.js"]
+  }]
 }

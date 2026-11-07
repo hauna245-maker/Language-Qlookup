@@ -1,0 +1,77 @@
+.ytp-caption-segment {
+  pointer-events: auto !important;
+  cursor: pointer;
+}
+
+#qlookup-popup {
+  position: fixed;
+  width: min(390px, calc(100vw - 16px));
+  box-sizing: border-box;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: #202124;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px #0006;
+  font: 15px/1.5 system-ui, sans-serif;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  z-index: 2147483647;
+}
+
+#qlookup-popup .qlookup-body { padding: 14px; }
+#qlookup-popup .qlookup-header,
+#qlookup-popup .qlookup-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+#qlookup-popup .qlookup-controls { flex-wrap: wrap; margin-top: 12px; }
+#qlookup-popup .qlookup-title { font-size: 20px; font-weight: bold; }
+#qlookup-popup .qlookup-status,
+#qlookup-popup .qlookup-usage,
+#qlookup-popup .qlookup-context { color: #d2d5dc; }
+#qlookup-popup .qlookup-status:not(:empty),
+#qlookup-popup .qlookup-meaning:not(:empty),
+#qlookup-popup .qlookup-usage:not(:empty),
+#qlookup-popup .qlookup-context { margin-top: 8px; }
+#qlookup-popup .qlookup-meaning,
+#qlookup-popup .qlookup-usage { white-space: pre-wrap; }
+#qlookup-popup .qlookup-caption { color: white; margin-block: 4px; }
+#qlookup-popup summary { cursor: pointer; }
+#qlookup-popup .qlookup-link {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #285da8;
+  color: white;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+#qlookup-popup .qlookup-link:hover { background: #326dc0; }
+#qlookup-popup button {
+  border: 1px solid #69717f;
+  border-radius: 6px;
+  background: #333944;
+  padding: 4px 8px;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+#qlookup-popup button:disabled { opacity: 0.6; cursor: wait; }
+#qlookup-popup .qlookup-close { font-size: 20px; line-height: 1; }
+#qlookup-popup .qlookup-regenerate {
+  margin-left: auto;
+  background: transparent;
+  border-color: transparent;
+  color: #d2d5dc;
+  font-size: 20px;
+  line-height: 1;
+}
+#qlookup-popup .qlookup-regenerate:hover { background: #333944; }

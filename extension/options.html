@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Language Qlookup Options</title>
+<style>
+body {
+  color-scheme: light dark;
+  font: 16px/1.5 system-ui, sans-serif;
+  margin: 2rem;
+  background-color: black;
+  color: rgb(190, 190, 190);
+}
+
+main { 
+  max-width: 38rem; 
+  margin: auto; 
+}
+form { 
+  display: grid; 
+  gap: 0.75rem; 
+}
+
+button, select, input { 
+  font: inherit; 
+}
+
+button { 
+  padding: 0.35rem 0.65rem; 
+}
+</style>
+<main>
+  <h1>Language Qlookup</h1>
+  <p>Use a <a href="https://aistudio.google.com/api-keys">Google AI Studio key</a> for a Free Tier project with billing disabled.</p>
+  <p id="key-status"></p>
+  <form>
+    <label for="key">Gemini API key</label>
+    <input id="key" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Enter your Gemini API key">
+    <button type="button" id="reveal">Show key</button>
+    <label for="model">Gemini model</label>
+    <select id="model"></select>
+    <div><button type="submit">Save settings</button> <button type="button" id="delete">Delete saved key</button></div>
+  </form>
+  <p id="feedback" role="status"></p>
+  <p>Chrome stores the key on this device across restarts. This storage is not an encrypted vault.</p>
+</main>
+<script type="module" src="options.js"></script>
+</html>
