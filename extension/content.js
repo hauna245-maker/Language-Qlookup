@@ -124,7 +124,7 @@
     if (!settings?.ok || !video.isConnected || page !== location.href || source !== video.currentSrc) return;
 
     const delta = key === "s" ? -settings.replaySeconds :
-      (key === "a" ? -settings.skipSeconds : settings.skipSeconds);
+      (key === "a" ? -settings.rewindSeconds : settings.forwardSeconds);
     video.currentTime = Math.max(0, Math.min(video.duration || Infinity, video.currentTime + delta));
     if (video.paused) video.play().catch(() => {});
   }, true);

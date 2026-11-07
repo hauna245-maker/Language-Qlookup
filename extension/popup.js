@@ -165,12 +165,15 @@
     const coreTitle = element("strong", "qlookup-core-title", "Core meaning");
     core.append(coreTitle, coreMeaning);
     const expression = element("section", "qlookup-meaning");
-    const expressionTitle = element("strong", "");
+    const expressionHeading = element("strong", "qlookup-core-title");
+    const expressionTitle = element("span", "");
     const expressionMeaning = element("div", "");
-    expression.append(expressionTitle, expressionMeaning);
+    expressionHeading.append(expressionTitle);
+    expression.append(expressionHeading, expressionMeaning);
     const contextual = element("section", "qlookup-meaning");
     const inContext = element("div", "");
-    contextual.append(element("strong", "", "In this context"), inContext);
+    const contextHeading = element("strong", "qlookup-core-title", "In this context");
+    contextual.append(contextHeading, inContext);
     const context = element("details", "qlookup-context");
     const contextArea = element("div", "qlookup-context-area");
     contextArea.append(context);
@@ -204,10 +207,19 @@
       return action;
     }
     const copyIcon = "M8 8h12v12H8z M16 8V4H4v12h4";
-    const copyCore = iconAction("button", "Copy core meaning", copyIcon);
-    copyCore.type = "button";
-    copyCore.className += " qlookup-copy-core";
-    coreTitle.append(copyCore);
+    function meaningCopy(heading, label, getText) {
+      const action = iconAction("button", label, copyIcon);
+      action.type = "button";
+      action.className += " qlookup-copy-core";
+      action.addEventListener("click", () => {
+        if (view.result) return copyText(getText(view.result));
+      });
+      heading.append(action);
+    }
+    meaningCopy(coreTitle, "Copy core meaning", result => lookup.word + ": " + result.coreMeaning);
+    meaningCopy(expressionHeading, "Copy expression meaning",
+      result => result.expression + ": " + result.expressionMeaning);
+    meaningCopy(contextHeading, "Copy contextual meaning", result => result.inContext);
     const copyContext = iconAction("button", "Copy caption context", copyIcon);
     copyContext.type = "button";
     copyContext.className += " qlookup-copy-core qlookup-copy-context";
@@ -256,19 +268,15 @@
       }
       updatePopupPosition();
     }
-    copyCore.addEventListener("click", () => {
-      if (view.result) return copyText(view.result.coreMeaning);
-    });
     copyContext.addEventListener("click", () => copyText(captionContext(lookup.caption)));
     copyResult.addEventListener("click", () => {
       if (!view.result) return;
-      const {partOfSpeech, coreMeaning, expression, expressionMeaning, inContext} = view.result;
+      const {coreMeaning, expression, expressionMeaning, inContext} = view.result;
       return copyText([
-        lookup.word + " · " + partOfSpeech,
-        "Core meaning\n" + coreMeaning,
-        expression && "Expression: " + expression + "\n" + expressionMeaning,
-        inContext && "In this context\n" + inContext,
-      ].filter(Boolean).join("\n\n"));
+        lookup.word + ": " + coreMeaning,
+        expression && expression + ": " + expressionMeaning,
+        inContext,
+      ].filter(Boolean).join("\n"));
     });
     copy.addEventListener("click", () => copyText(aiPrompt()));
     settings.addEventListener("click", async () => {

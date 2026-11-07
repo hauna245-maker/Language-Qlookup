@@ -252,8 +252,8 @@ export function createLookupService(storage, fetcher = fetch, clock = Date.now) 
   };
 }
 
-const shortcutDefaults = {skipSeconds: 3, replaySeconds: 2};
-const validDuration = value => Number.isInteger(value) && value >= 1 && value <= 60;
+const shortcutDefaults = {rewindSeconds: 3, replaySeconds: 2, forwardSeconds: 3};
+const validDuration = value => Number.isFinite(value) && value >= 0.1 && value <= 60;
 
 function registerWorker(chrome) {
   const storage = chrome.storage.local;
@@ -270,10 +270,11 @@ function registerWorker(chrome) {
     if (message.type === "qlookup:settings" || message.type === "qlookup:playback") {
       const options = message.type === "qlookup:settings";
       const keys = Object.keys(shortcutDefaults);
-      const preferences = [...keys, "hideNonEnglishCaptions"];
+      const preferences = [...keys, "skipSeconds", "hideNonEnglishCaptions"];
       const saved = await storage.get(options ? [...preferences, "apiKey", "model"] : preferences);
       const playback = Object.fromEntries(keys.map(key => [
-        key, validDuration(saved[key]) ? saved[key] : shortcutDefaults[key],
+        key, validDuration(saved[key]) ? saved[key] :
+          key !== "replaySeconds" && validDuration(saved.skipSeconds) ? saved.skipSeconds : shortcutDefaults[key],
       ]));
       playback.hideNonEnglishCaptions = saved.hideNonEnglishCaptions === true;
       if (!options) return {ok: true, ...playback};
@@ -286,10 +287,11 @@ function registerWorker(chrome) {
           message.key.length > 512) {
         return {ok: false, message: "Choose a supported model and enter a valid API key or leave the key field blank."};
       }
-      if (!validDuration(message.skipSeconds) || !validDuration(message.replaySeconds)) {
-        return {ok: false, message: "Enter a whole number from 1 to 60 seconds for each shortcut."};
+      const keys = Object.keys(shortcutDefaults);
+      if (!keys.every(key => validDuration(message[key]))) {
+        return {ok: false, message: "Enter a number from 0.1 to 60 seconds for each shortcut."};
       }
-      const updates = {model: message.model, skipSeconds: message.skipSeconds, replaySeconds: message.replaySeconds};
+      const updates = {model: message.model, ...Object.fromEntries(keys.map(key => [key, message[key]]))};
       updates.hideNonEnglishCaptions = message.hideNonEnglishCaptions === true;
       if (message.key.trim()) updates.apiKey = message.key.trim();
       await storage.set(updates);

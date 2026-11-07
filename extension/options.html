@@ -4,50 +4,63 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Language Qlookup Options</title>
 <style>
-body {
-  color-scheme: light dark;
-  font: 16px/1.5 system-ui, sans-serif;
-  margin: 2rem;
-  background-color: black;
-  color: rgb(190, 190, 190);
-}
-
-main { 
-  max-width: 38rem; 
-  margin: auto; 
-}
-form { 
-  display: grid; 
-  gap: 0.75rem; 
-}
-
-button, select, input { 
-  font: inherit; 
-}
-
-button { 
-  padding: 0.35rem 0.65rem; 
-}
+  :root { color-scheme: dark; }
+  body { margin: 2rem 1rem; background: #17181b; color: #ebedf0; font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 40rem; margin: auto; }
+  h1 { font-size: 1.6rem; }
+  form, fieldset { display: grid; gap: 0.75rem; }
+  fieldset { min-width: 0; margin: 0; padding: 1rem; border: 1px solid #50545d; border-radius: 10px; }
+  legend { padding: 0 0.4rem; font-weight: 650; }
+  p { margin: 0; }
+  .hint { color: #b8bec8; font-size: 0.9rem; }
+  a { color: #a8c7fa; }
+  .key-row, .shortcut-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.65rem; align-items: center; }
+  button, select, input { font: inherit; }
+  button, select, input:not([type=checkbox]) { padding: 0.35rem 0.65rem; }
+  input[type=number] { width: 5rem; }
+  button[type=submit] { justify-self: start; }
+  #delete { justify-self: start; }
 </style>
 <main>
-  <h1>Language Qlookup</h1>
-  <p>Use a <a href="https://aistudio.google.com/api-keys">Google AI Studio key</a> for a Free Tier project with billing disabled.</p>
-  <p id="key-status"></p>
+  <h1>Language Qlookup Options</h1>
   <form>
-    <label for="key">Gemini API key</label>
-    <input id="key" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Enter your Gemini API key">
-    <button type="button" id="reveal">Show key</button>
-    <label for="model">Gemini model</label>
-    <select id="model"></select>
-    <label for="skip-seconds">A / D skip (seconds)</label>
-    <input id="skip-seconds" type="number" min="1" max="60" step="1" required value="3">
-    <label for="replay-seconds">S rewind and play (seconds)</label>
-    <input id="replay-seconds" type="number" min="1" max="60" step="1" required value="2">
-    <label><input id="hide-non-english" type="checkbox"> Show only original English captions (hide other languages and auto-translations)</label>
-    <div><button type="submit">Save settings</button> <button type="button" id="delete">Delete saved key</button></div>
+    <fieldset>
+      <legend>Gemini API</legend>
+      <p class="hint">Use a <a href="https://aistudio.google.com/api-keys">Google AI Studio key</a> from a Free Tier project with billing disabled.</p>
+      <label for="key">API key</label>
+      <div class="key-row">
+        <input id="key" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Enter your Gemini API key">
+        <button type="button" id="reveal">Show key</button>
+      </div>
+      <p id="key-status" class="hint"></p>
+      <label for="model">Gemini model</label>
+      <select id="model"></select>
+      <button type="button" id="delete">Delete saved key</button>
+    </fieldset>
+    <fieldset>
+      <legend>Playback shortcuts</legend>
+      <p class="hint">Set each shortcut in seconds. Decimals such as 3.3 are supported.</p>
+      <div class="shortcut-row">
+        <label for="rewind-seconds">A · Rewind</label>
+        <input id="rewind-seconds" type="number" min="0.1" max="60" step="any" required value="3">
+      </div>
+      <div class="shortcut-row">
+        <label for="replay-seconds">S · Rewind and play</label>
+        <input id="replay-seconds" type="number" min="0.1" max="60" step="any" required value="2">
+      </div>
+      <div class="shortcut-row">
+        <label for="forward-seconds">D · Skip forward</label>
+        <input id="forward-seconds" type="number" min="0.1" max="60" step="any" required value="3">
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Other settings</legend>
+      <label><input id="hide-non-english" type="checkbox"> Show only original English captions</label>
+      <p class="hint">Hide other languages and auto-translated captions.</p>
+    </fieldset>
+    <button type="submit">Save settings</button>
+    <p id="feedback" role="status"></p>
   </form>
-  <p id="feedback" role="status"></p>
-  <p>Chrome stores the key on this device across restarts. This storage is not an encrypted vault.</p>
 </main>
 <script type="module" src="options.js"></script>
 </html>

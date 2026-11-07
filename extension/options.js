@@ -1,8 +1,9 @@
 const form = document.querySelector("form");
 const key = document.querySelector("#key");
 const model = document.querySelector("#model");
-const skipSeconds = document.querySelector("#skip-seconds");
+const rewindSeconds = document.querySelector("#rewind-seconds");
 const replaySeconds = document.querySelector("#replay-seconds");
+const forwardSeconds = document.querySelector("#forward-seconds");
 const hideNonEnglish = document.querySelector("#hide-non-english");
 const reveal = document.querySelector("#reveal");
 const remove = document.querySelector("#delete");
@@ -19,8 +20,9 @@ async function refresh() {
   const settings = await send("settings");
   model.replaceChildren(...Object.entries(settings.models).map(([id, label]) => new Option(label, id)));
   model.value = settings.model;
-  skipSeconds.value = settings.skipSeconds;
+  rewindSeconds.value = settings.rewindSeconds;
   replaySeconds.value = settings.replaySeconds;
+  forwardSeconds.value = settings.forwardSeconds;
   hideNonEnglish.checked = settings.hideNonEnglishCaptions;
   key.value = settings.key;
   remove.disabled = !settings.hasKey;
@@ -49,7 +51,8 @@ form.addEventListener("submit", event => {
   event.preventDefault();
   update(() => send("save", {
     key: key.value.trim(), model: model.value,
-    skipSeconds: skipSeconds.valueAsNumber, replaySeconds: replaySeconds.valueAsNumber,
+    rewindSeconds: rewindSeconds.valueAsNumber, replaySeconds: replaySeconds.valueAsNumber,
+    forwardSeconds: forwardSeconds.valueAsNumber,
     hideNonEnglishCaptions: hideNonEnglish.checked,
   }), "Settings saved.");
 });
