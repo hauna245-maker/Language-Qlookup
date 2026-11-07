@@ -10,6 +10,10 @@
   "options_ui": {"page": "options.html", "open_in_tab": true},
   "content_scripts": [{
     "matches": ["https://www.youtube.com/*"],
+    "js": ["youtube-track.js"],
+    "world": "MAIN"
+  }, {
+    "matches": ["https://www.youtube.com/*"],
     "css": ["content.css"],
     "js": ["captions.js", "popup.js", "content.js"]
   }]

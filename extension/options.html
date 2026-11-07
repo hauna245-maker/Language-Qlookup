@@ -39,6 +39,11 @@ button {
     <button type="button" id="reveal">Show key</button>
     <label for="model">Gemini model</label>
     <select id="model"></select>
+    <label for="skip-seconds">A / D skip (seconds)</label>
+    <input id="skip-seconds" type="number" min="1" max="60" step="1" required value="3">
+    <label for="replay-seconds">S rewind and play (seconds)</label>
+    <input id="replay-seconds" type="number" min="1" max="60" step="1" required value="2">
+    <label><input id="hide-non-english" type="checkbox"> Show only original English captions (hide other languages and auto-translations)</label>
     <div><button type="submit">Save settings</button> <button type="button" id="delete">Delete saved key</button></div>
   </form>
   <p id="feedback" role="status"></p>

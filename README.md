@@ -1,5 +1,9 @@
 # Language Qlookup
 
+Lookups show a **Core meaning** and, when useful, **In this context**. Use **Copy for AI** to copy a prompt with the clicked word marked in the caption.
+
+On YouTube, **A** rewinds 3 seconds, **D** skips forward 3 seconds, and **S** rewinds 2 seconds and plays. Change either duration in Extension options.
+
 Click a word in YouTube's English captions to get an explanation in English, with a Cambridge Dictionary link. Gemini receives the selected occurrence and nearby caption text when available.
 
 ## Install and configure

@@ -3,4 +3,3 @@
 .env.*
 !.env.example
 config.local.json
-api-key.js

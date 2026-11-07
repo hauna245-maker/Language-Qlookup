@@ -6,10 +6,33 @@ const model = "gemini-3.8-flash";
 const word = "get";
 const lookup = {word, caption: "I didn't get what she meant.", offset: 9};
 const other = {word, caption: "I need to get groceries.", offset: 10};
-const value = {expression: "get", explanation: "Understand something.", usage: "Informal."};
+const value = {
+  partOfSpeech: "verb", coreMeaning: "An idea reaches you and makes sense.",
+  expression: "", expressionMeaning: "", inContext: "",
+};
+
+test("expressions must include the clicked occurrence in the caption", () => {
+  const response = {...value, expression: "springing up", expressionMeaning: "Appearing suddenly.", inContext: "Lines appear."};
+  const literal = {word: "springing", context: "spontaneously ⟦springing⟧ green lines"};
+  assert.equal(validateExplanation(response, literal).expression, "");
+  assert.equal(validateExplanation(response, literal).inContext, "Lines appear.");
+  assert.equal(validateExplanation(response, {
+    word: "springing", context: "The lines are ⟦springing⟧ up everywhere.",
+  }).expression, "springing up");
+  assert.equal(validateExplanation(response, {
+    word: "springing", context: "Flowers were springing up while he was ⟦springing⟧ forward.",
+  }).expression, "");
+});
 const generated = () => Response.json({candidates: [{finishReason: "STOP", content: {parts: [
   {text: "hidden", thought: true}, {text: JSON.stringify(value)},
 ]}}]});
+
+test("Gemini context joins split captions into continuous text", () => {
+  assert.deepEqual(normalizeLookup({
+    word: "for", caption: "even though spec\nfor", offset: 17,
+    before: "It goes to my Windows PC,", after: "spec, they're similar.",
+  }), {word: "for", context: "It goes to my Windows PC, even though spec ⟦for⟧ spec, they're similar."});
+});
 
 function memoryStorage() {
   const entries = {};
@@ -90,8 +113,10 @@ test("a quota error without a retry time requires explicit regeneration", async 
 });
 
 test("invalid data and API errors are reported without being cached", async () => {
-  assert.equal(validateExplanation({...value, usage: []}), null);
-  assert.equal(validateExplanation({...value, explanation: " "}), null);
+  assert.equal(validateExplanation({...value, inContext: []}), null);
+  assert.equal(validateExplanation({...value, coreMeaning: " "}), null);
+  assert.equal(validateExplanation({...value, expression: "get it"}), null);
+  assert.equal(validateExplanation({expression: "get", explanation: "Old response", usage: ""}), null);
   const responses = [Response.json({candidates: []}), Response.json({}, {status: 403}),
     Response.json({}, {status: 404}), null, generated()];
   const service = createLookupService(memoryStorage(), async () => {
