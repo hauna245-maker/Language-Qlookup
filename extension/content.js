@@ -7,13 +7,18 @@
   let hover;
   const clearHover = () => hover?.remove();
   const hiddenClass = "language-qlookup-hide-captions";
-  let filterCaptions = false;
+  let allowedCaptions;
+  let filterCaptionLanguages = true;
+  let autoSelectOriginal = false;
   let checkedAt = -Infinity;
 
   function checkCaptionLanguage() {
-    if (!filterCaptions || performance.now() - checkedAt < 500) return;
+    if (!allowedCaptions || (!filterCaptionLanguages && !autoSelectOriginal) ||
+        performance.now() - checkedAt < 500) return;
     checkedAt = performance.now();
-    window.postMessage({type: "qlookup:caption-language-request"}, location.origin);
+    window.postMessage({type: "qlookup:caption-language-request",
+      autoSelectLanguages: autoSelectOriginal && filterCaptionLanguages ? allowedCaptions : [],
+      autoSelectAll: autoSelectOriginal && !filterCaptionLanguages}, location.origin);
   }
 
   async function readPlaybackSettings() {
@@ -28,8 +33,10 @@
   async function refreshCaptionSetting() {
     const response = await readPlaybackSettings();
     if (!response?.ok) return;
-    filterCaptions = response.hideNonEnglishCaptions;
-    if (!filterCaptions) document.documentElement.classList.remove(hiddenClass);
+    allowedCaptions = response.captionLanguages;
+    filterCaptionLanguages = response.filterCaptionLanguages !== false;
+    if (!filterCaptionLanguages) document.documentElement.classList.remove(hiddenClass);
+    autoSelectOriginal = response.autoSelectOriginalCaptions === true;
     checkedAt = -Infinity;
     checkCaptionLanguage();
   }
@@ -38,7 +45,11 @@
     const data = event.data;
     if (event.source !== window || event.origin !== location.origin || data?.type !== "qlookup:caption-language" ||
         data.videoId !== new URL(location.href).searchParams.get("v")) return;
-    document.documentElement.classList.toggle(hiddenClass, filterCaptions && data.hide === true);
+    if (!allowedCaptions) return;
+    const language = data.originalLanguage;
+    const hide = filterCaptionLanguages &&
+      (language ? !allowedCaptions.includes(language) : data.multipleGenerated === true);
+    document.documentElement.classList.toggle(hiddenClass, hide);
   });
   window.addEventListener("focus", refreshCaptionSetting);
   document.addEventListener("yt-navigate-start", () => {
@@ -46,6 +57,14 @@
     checkedAt = -Infinity;
   });
   document.addEventListener("yt-navigate-finish", checkCaptionLanguage);
+  document.addEventListener("click", event => {
+    if (!(event.target instanceof Element) ||
+        !event.target.closest("#movie_player .ytp-settings-button, #movie_player .ytp-settings-menu")) return;
+    requestAnimationFrame(() => {
+      checkedAt = -Infinity;
+      checkCaptionLanguage();
+    });
+  }, true);
   refreshCaptionSetting();
 
   const captions = observeCaptions(caption => {
@@ -127,7 +146,10 @@
     event.stopPropagation();
     const video = selection.anchor.closest("#movie_player")?.querySelector("video");
     video?.pause();
-    showPopup(selection, captions.getAnchor, signal => captions.readPassage(selection, signal), video);
+    showPopup(selection, captions.getAnchor, async (signal, mode) => {
+      const settings = await readPlaybackSettings();
+      return captions.readPassage(selection, signal, mode, settings);
+    }, video);
   }, true);
 
   document.addEventListener("keydown", async event => {
@@ -136,12 +158,17 @@
     const target = event.composedPath()[0];
     if (!["a", "s", "d"].includes(key) || event.defaultPrevented || event.repeat ||
         event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
-        target?.isContentEditable || target?.closest?.("input, textarea, select, [role='textbox']")) return;
+        target?.isContentEditable ||
+        target?.closest?.("input, textarea, select, [role='textbox'], .qlookup-context-editor")) return;
 
     const video = document.querySelector("#movie_player video");
     if (!video || video.readyState < 1 || video.closest(".ad-showing")) return;
     event.preventDefault();
     event.stopPropagation();
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && focused.closest("#movie_player .caption-window")) {
+      focused.blur();
+    }
     const page = location.href;
     const source = video.currentSrc;
     const settings = await readPlaybackSettings();

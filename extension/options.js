@@ -4,7 +4,12 @@ const model = document.querySelector("#model");
 const rewindSeconds = document.querySelector("#rewind-seconds");
 const replaySeconds = document.querySelector("#replay-seconds");
 const forwardSeconds = document.querySelector("#forward-seconds");
-const hideNonEnglish = document.querySelector("#hide-non-english");
+const contextBefore = document.querySelector("#context-before");
+const contextAfter = document.querySelector("#context-after");
+const captionLanguages = [...document.querySelectorAll('input[name="caption-language"]')];
+const filterCaptionLanguages = document.querySelector("#filter-caption-languages");
+const captionLanguageList = document.querySelector("#caption-language-list");
+const autoSelectOriginal = document.querySelector("#auto-select-original");
 const reveal = document.querySelector("#reveal");
 const remove = document.querySelector("#delete");
 const feedback = document.querySelector("#feedback");
@@ -23,7 +28,12 @@ async function refresh() {
   rewindSeconds.value = settings.rewindSeconds;
   replaySeconds.value = settings.replaySeconds;
   forwardSeconds.value = settings.forwardSeconds;
-  hideNonEnglish.checked = settings.hideNonEnglishCaptions;
+  contextBefore.value = settings.contextBefore;
+  contextAfter.value = settings.contextAfter;
+  for (const input of captionLanguages) input.checked = settings.captionLanguages.includes(input.value);
+  filterCaptionLanguages.checked = settings.filterCaptionLanguages;
+  captionLanguageList.disabled = !filterCaptionLanguages.checked;
+  autoSelectOriginal.checked = settings.autoSelectOriginalCaptions;
   key.value = settings.key;
   remove.disabled = !settings.hasKey;
   document.querySelector("#key-status").textContent = settings.hasKey
@@ -53,8 +63,14 @@ form.addEventListener("submit", event => {
     key: key.value.trim(), model: model.value,
     rewindSeconds: rewindSeconds.valueAsNumber, replaySeconds: replaySeconds.valueAsNumber,
     forwardSeconds: forwardSeconds.valueAsNumber,
-    hideNonEnglishCaptions: hideNonEnglish.checked,
+    contextBefore: contextBefore.valueAsNumber, contextAfter: contextAfter.valueAsNumber,
+    captionLanguages: captionLanguages.filter(input => input.checked).map(input => input.value),
+    filterCaptionLanguages: filterCaptionLanguages.checked,
+    autoSelectOriginalCaptions: autoSelectOriginal.checked,
   }), "Settings saved.");
+});
+filterCaptionLanguages.addEventListener("change", () => {
+  captionLanguageList.disabled = !filterCaptionLanguages.checked;
 });
 
 remove.addEventListener("click", () => update(() => send("delete"), "Saved key deleted."));

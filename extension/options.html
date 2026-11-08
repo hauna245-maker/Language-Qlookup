@@ -20,6 +20,26 @@
   input[type=number] { width: 5rem; }
   button[type=submit] { justify-self: start; }
   #delete { justify-self: start; }
+  .switch-row { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 1rem; cursor: pointer; }
+  .switch-row input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .switch {
+    position: relative; box-sizing: border-box; flex: 0 0 4.2rem; height: 1.7rem;
+    border: 1px solid #69717f; border-radius: 999px; background: #343942; color: #fff;
+    font: 600 0.72rem/1.55rem system-ui, sans-serif; padding-left: 1.65rem;
+  }
+  .switch::before { content: "Off"; }
+  .switch::after {
+    content: ""; position: absolute; top: 0.18rem; left: 0.2rem;
+    width: 1.2rem; height: 1.2rem; border-radius: 50%; background: #d2d8e2;
+  }
+  .switch-row input:checked + .switch { background: #285da8; border-color: #729fe4; padding-left: 0.55rem; }
+  .switch-row input:checked + .switch::before { content: "On"; }
+  .switch-row input:checked + .switch::after { left: auto; right: 0.2rem; background: #fff; }
+  .switch-row input:focus-visible + .switch { outline: 2px solid #a8c7fa; outline-offset: 3px; }
+  .language-list { border: 0; padding: 0.35rem 0 0; gap: 0.4rem; }
+  .language-list legend { padding: 0; font-size: 0.9rem; }
+  .language-list label { display: flex; align-items: center; gap: 0.5rem; }
+  .language-list:disabled { opacity: 0.55; }
 </style>
 <main>
   <h1>Language Qlookup Options</h1>
@@ -54,9 +74,32 @@
       </div>
     </fieldset>
     <fieldset>
-      <legend>Other settings</legend>
-      <label><input id="hide-non-english" type="checkbox"> Show only original English captions</label>
-      <p class="hint">Hide other languages and auto-translated captions.</p>
+      <legend>Caption context</legend>
+      <p class="hint">The sentence containing the clicked word is always included. The default uses four sentences when available.</p>
+      <div class="shortcut-row">
+        <label for="context-before">Sentences before</label>
+        <input id="context-before" type="number" min="0" max="8" step="1" required value="2">
+      </div>
+      <div class="shortcut-row">
+        <label for="context-after">Sentences after</label>
+        <input id="context-after" type="number" min="0" max="8" step="1" required value="1">
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Show captions by original video language</legend>
+      <label class="switch-row">Filter caption visibility <input type="checkbox" role="switch" id="filter-caption-languages" checked><span class="switch" aria-hidden="true"></span></label>
+      <p class="hint">When on, captions are shown only on videos originally in the languages you check below. When off, YouTube controls caption visibility.</p>
+      <fieldset id="caption-language-list" class="language-list">
+        <legend>Show captions on videos originally in</legend>
+        <label><input type="checkbox" name="caption-language" value="en"> English</label>
+        <label><input type="checkbox" name="caption-language" value="ko"> Korean</label>
+        <label><input type="checkbox" name="caption-language" value="ja"> Japanese</label>
+      </fieldset>
+    </fieldset>
+    <fieldset>
+      <legend>Original-language subtitles</legend>
+      <label class="switch-row">Automatically select original-language subtitles <input type="checkbox" role="switch" id="auto-select-original"><span class="switch" aria-hidden="true"></span></label>
+      <p class="hint">When YouTube captions are on, choose subtitles that match the original audio. If the filter above is on, this applies only to checked languages. You can still change the track afterward.</p>
     </fieldset>
     <button type="submit">Save settings</button>
     <p id="feedback" role="status"></p>

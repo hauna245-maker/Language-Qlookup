@@ -128,8 +128,31 @@
 }
 #qlookup-popup summary { cursor: pointer; }
 #qlookup-popup .qlookup-context-area { position: relative; }
-#qlookup-popup .qlookup-context-area summary { padding-right: 32px; min-height: 26px; }
+#qlookup-popup .qlookup-context-area summary { padding-right: 62px; min-height: 26px; }
 #qlookup-popup .qlookup-copy-context { position: absolute; right: 0; top: 0; }
+#qlookup-popup .qlookup-refresh-context { right: 30px; }
+#qlookup-popup .qlookup-select-context { margin-left: 4px; vertical-align: middle; }
+#qlookup-popup .qlookup-context-editor {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #658bc3;
+  border-radius: 8px;
+  background: #23334b;
+}
+#qlookup-popup .qlookup-editor-title { display: block; color: #b5d4ff; margin-bottom: 4px; }
+#qlookup-popup .qlookup-context-editor p { margin: 0 0 6px; }
+#qlookup-popup .qlookup-transcript {
+  position: relative;
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  background: #292d34;
+  border-radius: 6px;
+  user-select: text;
+}
+#qlookup-popup .qlookup-transcript mark { background: #243f63; color: #c4dbff; }
+#qlookup-popup .qlookup-editor-actions { display: flex; gap: 8px; margin-top: 8px; }
 #qlookup-popup .qlookup-action {
   display: inline-flex;
   align-items: center;

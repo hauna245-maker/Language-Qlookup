@@ -4,7 +4,7 @@ Lookups show a **Core meaning** and, when useful, **In this context**. Use **Cop
 
 On YouTube, **A** rewinds 3 seconds, **D** skips forward 3 seconds, and **S** rewinds 2 seconds and plays. Change either duration in Extension options.
 
-Click a word in YouTube's English captions to get an explanation in English, with a Cambridge Dictionary link. Gemini receives the selected occurrence and nearby caption text when available.
+Click a word in YouTube captions to get an explanation in English, with a Cambridge Dictionary link for English lookups. In Extension options, choose which original video languages can show captions: English, Korean, or Japanese. Enable **Automatically select original-language subtitles** to choose a matching subtitle track on those videos when YouTube captions are on. Gemini receives the selected occurrence and nearby caption text when available.
 
 ## Install and configure
 

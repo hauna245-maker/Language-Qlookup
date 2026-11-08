@@ -5,6 +5,9 @@
   let cachedUrl;
   let trackRequest;
   let failedAt = 0;
+  let handledCaptionVideo;
+  const isAutoCaption = track => track.kind === "asr" || track.isAsr === true ||
+    (typeof track.vssId === "string" && track.vssId.startsWith("a."));
 
   function sourceUrl(player, videoId) {
     const selected = player?.getOption?.("captions", "track");
@@ -53,7 +56,7 @@
   }
 
   function getTrack(url, retry = false) {
-    if (url !== cachedUrl || (retry && failedAt && Date.now() - failedAt > 15000)) {
+    if (url !== cachedUrl || (failedAt && (retry || Date.now() - failedAt > 15000))) {
       cachedUrl = url;
       failedAt = 0;
       trackRequest = readTrack(url).catch(() => []);
@@ -77,7 +80,44 @@
   function knownLanguage(language) {
     const base = typeof language === "string" ? language.split("-")[0].toLowerCase() : "";
     if (!/^[a-z]{2,3}$/u.test(base) || ["und", "mul", "zxx"].includes(base)) return "";
-    return base === "eng" ? "en" : base;
+    return ({eng: "en", kor: "ko", jpn: "ja"})[base] || base;
+  }
+
+  function originalAudioLanguage(player, response) {
+    const renderer = response.captions?.playerCaptionsTracklistRenderer;
+    const playerApi = typeof player?.getAvailableAudioTracks === "function"
+      ? player : document.querySelector("ytd-player")?.player_;
+    const available = playerApi?.getAvailableAudioTracks?.() || [];
+    const selectedAudio = playerApi?.getAudioTrack?.();
+    const streaming = (response.streamingData?.adaptiveFormats || []).map(format => format.audioTrack).filter(Boolean);
+    const original = new Set();
+    const originalLabel = /(?:^|[\s(（\-–—])(?:original|オリジナル|元の音声|원본|원어)(?:[\s)）]|$)/iu;
+    for (const track of [...available, selectedAudio, ...(renderer?.audioTracks || []), ...streaming].filter(Boolean)) {
+      const info = track.getLanguageInfo?.() || track;
+      const labels = [info.displayName, info.name, track.displayName, track.name]
+        .map(display => typeof display === "string" ? display :
+          display?.simpleText || display?.runs?.map(run => run.text).join("") || "");
+      if (!(track.isOriginal === true || track.audioIsOriginal === true || info.isOriginal === true ||
+          labels.some(label => originalLabel.test(label)))) continue;
+      const id = info.id || track.id || track.audioTrackId;
+      const language = knownLanguage(info.languageCode || track.languageCode ||
+        (typeof id === "string" ? id.split(".")[0] : ""));
+      if (language) original.add(language);
+    }
+    if (original.size === 1) return original.values().next().value;
+    if (!original.size) {
+      // If YouTube has rendered the audio menu, its Original label can be
+      // more descriptive than the objects exposed by the player.
+      for (const item of player?.querySelectorAll?.(".ytp-settings-menu .ytp-menuitem-label") || []) {
+        const label = item.textContent.trim();
+        if (!originalLabel.test(label)) continue;
+        if (/^(?:japanese|日本語|일본어)(?:\s|[（(])/iu.test(label)) original.add("ja");
+        if (/^(?:korean|韓国語|한국어)(?:\s|[（(])/iu.test(label)) original.add("ko");
+        if (/^(?:english|英語|영어)(?:\s|[（(])/iu.test(label)) original.add("en");
+      }
+      if (original.size === 1) return original.values().next().value;
+    }
+    return knownLanguage(response.videoDetails?.defaultAudioLanguage);
   }
 
   function prefetch() {
@@ -97,18 +137,44 @@
     observer.observe({type: "resource", buffered: true});
   }
   document.addEventListener?.("yt-navigate-finish", prefetch);
+  document.addEventListener?.("yt-navigate-start", () => { handledCaptionVideo = undefined; });
   prefetch();
+
+  function selectOriginalCaptions(player, videoId, language, tracks) {
+    if (handledCaptionVideo === videoId || typeof player.setOption !== "function" ||
+        player.querySelector(".ytp-subtitles-button")?.getAttribute("aria-pressed") === "false") return;
+    const selected = player.getOption?.("captions", "track");
+    if (!selected?.languageCode) return;
+    if (!selected.translationLanguage && knownLanguage(selected.languageCode) === language) {
+      handledCaptionVideo = videoId;
+      return;
+    }
+    const matching = tracks.filter(track => !track.translationLanguage && knownLanguage(track.languageCode) === language);
+    const target = matching.find(track => !isAutoCaption(track)) || matching[0];
+    if (!target) return;
+
+    // YouTube's web player exposes this caption setter independently of its
+    // audio selector and CC toggle. Only attempt it once per visit.
+    handledCaptionVideo = videoId;
+    const {languageCode, kind, vssId} = target;
+    player.setOption("captions", "track", {languageCode, ...(kind && {kind}), ...(vssId && {vssId})});
+  }
 
   const sentences = new Intl.Segmenter("en", {granularity: "sentence"});
 
-  function findPassage(cues, caption, offset, time) {
+  function findPassage(cues, {caption, offset, mode, before, after}, time) {
     const active = cues.findIndex(cue => cue.start <= time + 0.25 && cue.end >= time - 0.25);
     if (active < 0) return null;
 
     let first = active;
     let last = active;
-    while (first > Math.max(0, active - 12) && cues[first].start - cues[first - 1].end <= 5) first--;
-    while (last < Math.min(cues.length - 1, active + 12) && cues[last + 1].start - cues[last].end <= 5) last++;
+    if (mode === "transcript") {
+      first = 0;
+      last = cues.length - 1;
+    } else {
+      while (first > Math.max(0, active - 24) && cues[first].start - cues[first - 1].end <= 5) first--;
+      while (last < Math.min(cues.length - 1, active + 24) && cues[last + 1].start - cues[last].end <= 5) last++;
+    }
 
     let text = "";
     const positions = [];
@@ -143,13 +209,36 @@
     if (matches.length !== 1) return null;
 
     const target = matches[0];
+    if (mode === "transcript") return text.length <= 500000 ? {caption: text, offset: target} : null;
     const parts = [...sentences.segment(text)];
     const sentence = parts.findIndex(part => target >= part.index && target < part.index + part.segment.length);
     if (sentence < 0) return null;
-    const start = parts[Math.max(0, sentence - 1)].index;
-    const end = parts[sentence + 2]?.index ?? text.length;
-    const passage = text.slice(start, end).trimEnd();
-    return passage.length <= 1000 ? {caption: passage, offset: target - start} : null;
+    const count = (value, fallback) => Number.isInteger(value) && value >= 0 && value <= 8 ? value : fallback;
+    const beforeCount = count(before, 2);
+    const afterCount = count(after, 1);
+    let from = Math.max(0, sentence - beforeCount);
+    let to = Math.min(parts.length - 1, sentence + afterCount);
+    const selectedText = () => text.slice(parts[from].index, parts[to + 1]?.index ?? text.length).trimEnd();
+    if (beforeCount === 2 && afterCount === 1 && selectedText().split(/\s+/u).length < 30) {
+      if (to < parts.length - 1) to++;
+      else if (from > 0) from--;
+    }
+    let passage = selectedText();
+    while ((passage.length > 1000 || passage.split(/\s+/u).length > 120) && (from < sentence || to > sentence)) {
+      if (sentence - from >= to - sentence && from < sentence) from++;
+      else to--;
+      passage = selectedText();
+    }
+    if (passage.length <= 1000 && passage.split(/\s+/u).length <= 120) {
+      return {caption: passage, offset: target - parts[from].index};
+    }
+    // Some auto-generated tracks have little punctuation and form one long sentence.
+    const start = Math.max(parts[from].index, target - 450);
+    const end = Math.min(parts[to + 1]?.index ?? text.length, target + 500);
+    const clipped = text.slice(start, end);
+    const left = start > parts[from].index ? Math.max(0, clipped.indexOf(" ") + 1) : 0;
+    const right = end < (parts[to + 1]?.index ?? text.length) ? clipped.lastIndexOf(" ") : clipped.length;
+    return {caption: clipped.slice(left, right), offset: target - start - left};
   }
 
   window.addEventListener("message", async event => {
@@ -160,48 +249,33 @@
       return;
     }
     if (data?.type === "qlookup:caption-language-request") {
-      const {player, video, videoId} = playerState();
-      let hide = false;
+      const {player, videoId} = playerState();
+      let originalLanguage = "";
+      let multipleGenerated = false;
       try {
-        const selected = player?.getOption?.("captions", "track");
-        const nativeTracks = [...(video?.textTracks || [])].filter(track =>
-          track.mode === "showing" && ["captions", "subtitles"].includes(track.kind));
-        let language = selected?.languageCode || (nativeTracks.length === 1 ? nativeTracks[0].language : "");
-        let translated = Boolean(selected?.translationLanguage);
-        // The player can report the displayed language as English even when
-        // its timed-text request identifies a different source language.
-        const resources = performance.getEntriesByType("resource");
-        for (let i = resources.length - 1; i >= 0; i--) {
-          if (!resources[i].name.startsWith(location.origin + "/api/timedtext?")) continue;
-          const params = new URL(resources[i].name).searchParams;
-          const source = params.get("lang");
-          const target = params.get("tlang");
-          if (params.get("v") !== videoId || !source) continue;
-          if (target && (!language || language === target || language === source)) {
-            translated = true;
-            language = source;
-          } else if (!language) {
-            language = source;
-          }
-          break;
-        }
-        const baseLanguage = knownLanguage(language);
-        hide = translated || Boolean(baseLanguage && baseLanguage !== "en");
-        if (!hide && videoId) {
-          const response = player?.getPlayerResponse?.();
-          const tracks = response?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-          if (response?.videoDetails?.videoId === videoId && Array.isArray(tracks)) {
-            const generated = new Set(tracks.filter(track => track.kind === "asr")
-              .map(track => knownLanguage(track.languageCode)));
-            // A single known speech-recognition language can identify a video
-            // even when the selected subtitle track is a separately uploaded translation.
-            hide = generated.size === 1 && !generated.has("") && !generated.has("en");
+        const response = player?.getPlayerResponse?.();
+        if (videoId && response?.videoDetails?.videoId === videoId) {
+          const tracks = response.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+          const playerTracks = player.getOption?.("captions", "tracklist");
+          const autoTracks = list => Array.isArray(list) ? list.filter(isAutoCaption) : [];
+          const fromResponse = autoTracks(tracks);
+          const fromPlayer = autoTracks(playerTracks);
+          const generated = fromPlayer.length > fromResponse.length ? fromPlayer : fromResponse;
+          multipleGenerated = generated.length > 1;
+          originalLanguage = (generated.length === 1 && knownLanguage(generated[0].languageCode)) ||
+            originalAudioLanguage(player, response);
+          if (originalLanguage && (data.autoSelectAll === true ||
+              (Array.isArray(data.autoSelectLanguages) && data.autoSelectLanguages.includes(originalLanguage)))) {
+            selectOriginalCaptions(player, videoId, originalLanguage, [
+              ...(Array.isArray(playerTracks) ? playerTracks : []),
+              ...(Array.isArray(tracks) ? tracks : []),
+            ]);
           }
         }
       } catch {
-        // Keep captions visible when the active track cannot be identified.
+        // Leave captions visible if the original language cannot be identified.
       }
-      window.postMessage({type: "qlookup:caption-language", videoId, hide}, location.origin);
+      window.postMessage({type: "qlookup:caption-language", videoId, originalLanguage, multipleGenerated}, location.origin);
       return;
     }
     if (data?.type !== "qlookup:passage-request" || typeof data.caption !== "string" ||
@@ -220,13 +294,13 @@
             const text = typeof cue.text === "string" ? normalize(cue.text) : "";
             return text ? [{text, start: cue.startTime, end: cue.endTime}] : [];
           });
-          passage = findPassage(cues, data.caption, data.offset, time);
+          passage = findPassage(cues, data, time);
         }
         if (!passage) {
           const url = sourceUrl(player, videoId);
           if (url) {
-            const cues = await getTrack(url, true);
-            if (url === sourceUrl(player, videoId)) passage = findPassage(cues, data.caption, data.offset, time);
+            const cues = await getTrack(url, data.mode === "refresh");
+            if (url === sourceUrl(player, videoId)) passage = findPassage(cues, data, time);
           }
         }
         if (videoId !== playerState().videoId || Math.abs(video.currentTime - time) > 0.25) passage = null;

@@ -146,7 +146,7 @@
       }};
     }
 
-    function readPassage(selection, signal) {
+    function readPassage(selection, signal, mode, settings) {
       const {caption: raw, word, offset: rawOffset} = selection.lookup;
       const caption = raw.trim().replace(/\s+/gu, " ");
       const offset = raw.slice(0, rawOffset).trimStart().replace(/\s+/gu, " ").length;
@@ -165,7 +165,7 @@
           if (event.source === window && event.origin === location.origin &&
               data?.type === "qlookup:passage-result" && data.id === id) {
             const passage = data.passage;
-            const valid = typeof passage?.caption === "string" && passage.caption.length <= 1000 &&
+            const valid = typeof passage?.caption === "string" && passage.caption.length <= (mode === "transcript" ? 500000 : 1000) &&
               Number.isInteger(passage.offset) && passage.offset >= 0 &&
               passage.caption.slice(passage.offset, passage.offset + word.length) === word;
             finish(valid ? {caption: passage.caption, offset: passage.offset} : null);
@@ -174,7 +174,8 @@
         const timer = setTimeout(cancel, 3000);
         window.addEventListener("message", receive);
         signal.addEventListener("abort", cancel, {once: true});
-        window.postMessage({type: "qlookup:passage-request", id, caption, offset}, location.origin);
+        window.postMessage({type: "qlookup:passage-request", id, caption, offset, mode,
+          before: settings?.contextBefore, after: settings?.contextAfter}, location.origin);
       });
     }
 

@@ -92,6 +92,7 @@
   async function load(view, regenerate) {
     view.status.textContent = "Looking up the meaning…";
     view.regenerate.disabled = true;
+    view.refreshContext.disabled = view.selectContext.disabled = true;
     view.copyResult.disabled = true;
     view.result = null;
     view.partOfSpeech.textContent = "";
@@ -128,6 +129,7 @@
       }
     }
     view.regenerate.disabled = false;
+    view.refreshContext.disabled = view.selectContext.disabled = false;
     updatePopupPosition();
   }
 
@@ -179,16 +181,19 @@
     context.addEventListener("toggle", updatePopupPosition);
     const caption = element("div", "qlookup-caption");
     const selected = element("mark", "", lookup.word);
+    const contextStatus = element("div", "qlookup-status");
+    contextStatus.setAttribute("role", "status");
     function renderContext() {
       caption.replaceChildren(lookup.caption.slice(0, lookup.offset), selected,
         lookup.caption.slice(lookup.offset + lookup.word.length));
-      context.replaceChildren(element("summary", "", "Caption context"));
+      const summary = element("summary", "", "Caption context");
+      summary.append(selectContext);
+      context.replaceChildren(summary, contextStatus);
       if (lookup.earlier) context.append(element("div", "", lookup.earlier));
       if (lookup.before) context.append(element("div", "", lookup.before));
       context.append(caption);
       if (lookup.after) context.append(element("div", "", lookup.after));
     }
-    renderContext();
 
     const controls = element("div", "qlookup-controls");
     function iconAction(tag, label, path) {
@@ -230,6 +235,14 @@
     copyContext.type = "button";
     copyContext.className += " qlookup-copy-core qlookup-copy-context";
     contextArea.append(copyContext);
+    const refreshContext = iconAction("button", "Refresh context", "M20 7v5h-5 M20 12a8 8 0 1 0-2 6");
+    refreshContext.type = "button";
+    refreshContext.className += " qlookup-copy-core qlookup-copy-context qlookup-refresh-context";
+    contextArea.append(refreshContext);
+    const selectContext = iconAction("button", "Select context", "M4 16l-1 5 5-1L20 8l-4-4z M14 6l4 4");
+    selectContext.type = "button";
+    selectContext.className += " qlookup-copy-core qlookup-select-context";
+    renderContext();
     const copyResult = iconAction("button", "Copy result", copyIcon);
     const settings = iconAction("button", "Open extension options", "M10 3h4l.6 2.6 2 .9L19 5l2 3.5-2 1.8v2.4l2 1.8-2 3.5-2.4-1.5-2 .9L14 20h-4l-.6-2.6-2-.9L5 18l-2-3.5 2-1.8v-2.4L3 8.5 5 5l2.4 1.5 2-.9L10 3z M15 11.5a3 3 0 1 1-6 0 3 3 0 1 1 6 0z");
     settings.type = "button";
@@ -256,11 +269,104 @@
     function updateSearch() {
       search.href = "https://www.google.com/search?q=" + encodeURIComponent(aiPrompt());
     }
+    function applyPassage(passage) {
+      Object.assign(lookup, passage, {earlier: "", before: "", after: ""});
+      renderContext();
+      updateSearch();
+    }
+    async function requestContext(mode) {
+      if (!readPassage) return null;
+      view.wait = new AbortController();
+      try {
+        return await readPassage(view.wait.signal, mode);
+      } catch {
+        return null;
+      }
+    }
+    async function changeContext(mode) {
+      contextArea.querySelector(".qlookup-context-editor")?.remove();
+      refreshContext.disabled = selectContext.disabled = regenerate.disabled = true;
+      context.open = true;
+      contextStatus.textContent = mode === "refresh" ? "Refreshing context…" : "Opening transcript…";
+      updatePopupPosition();
+      const passage = await requestContext(mode);
+      if (current !== view) return;
+      refreshContext.disabled = selectContext.disabled = regenerate.disabled = false;
+      if (mode === "refresh") {
+        if (passage) applyPassage(passage);
+        contextStatus.textContent = passage
+          ? "Context refreshed. Use ↻ by the word to update the explanation."
+          : "No additional captions found.";
+        updatePopupPosition();
+        return;
+      }
+      const earlier = [lookup.earlier, lookup.before].filter(Boolean).join(" ");
+      const fallback = {
+        caption: [earlier, lookup.caption, lookup.after].filter(Boolean).join(" "),
+        offset: lookup.offset + (earlier ? earlier.length + 1 : 0),
+      };
+      showContextSelector(passage || fallback, Boolean(passage));
+    }
+    function showContextSelector(passage, hasTranscript) {
+      contextArea.querySelector(".qlookup-context-editor")?.remove();
+      contextStatus.textContent = hasTranscript ? "" : "Full transcript unavailable. Showing available captions.";
+      const editor = element("div", "qlookup-context-editor");
+      editor.setAttribute("role", "region");
+      editor.setAttribute("aria-label", "Select context");
+      const heading = element("strong", "qlookup-editor-title", "Select context");
+      const instructions = element("p", "", "Select text that includes the highlighted word, up to 1,000 characters.");
+      const transcript = element("div", "qlookup-transcript");
+      transcript.tabIndex = 0;
+      transcript.setAttribute("aria-label", "Selectable transcript");
+      const target = element("mark", "", lookup.word);
+      transcript.append(passage.caption.slice(0, passage.offset), target,
+        passage.caption.slice(passage.offset + lookup.word.length));
+      const use = element("button", "qlookup-action", "Use selection");
+      const cancel = element("button", "qlookup-action", "Cancel");
+      use.type = cancel.type = "button";
+      use.addEventListener("mousedown", event => event.preventDefault());
+      use.addEventListener("click", () => {
+        const selection = window.getSelection();
+        const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+        if (!range || range.collapsed || !transcript.contains(range.commonAncestorContainer)) {
+          instructions.textContent = "Select a passage in the transcript first.";
+          return;
+        }
+        const prefix = document.createRange();
+        prefix.selectNodeContents(transcript);
+        prefix.setEnd(range.startContainer, range.startOffset);
+        const start = prefix.toString().length;
+        const text = range.toString();
+        const offset = passage.offset - start;
+        if (offset < 0 || text.slice(offset, offset + lookup.word.length) !== lookup.word || text.length > 1000) {
+          instructions.textContent = "Include the highlighted word and select no more than 1,000 characters.";
+          return;
+        }
+        applyPassage({caption: text, offset});
+        selection.removeAllRanges();
+        editor.remove();
+        contextStatus.textContent = "Selection applied. Use ↻ by the word to update the explanation.";
+        updatePopupPosition();
+      });
+      cancel.addEventListener("click", () => {
+        editor.remove();
+        updatePopupPosition();
+      });
+      const editorActions = element("div", "qlookup-editor-actions");
+      editorActions.append(use, cancel);
+      editor.append(heading, instructions, transcript, editorActions);
+      contextArea.append(editor);
+      updatePopupPosition();
+      // Scroll the transcript itself, leaving the popup header and footer fixed.
+      transcript.scrollTop = target.offsetTop - transcript.clientHeight / 2;
+    }
     function aiPrompt() {
       const marked = lookup.caption.slice(0, lookup.offset) + "[" + lookup.word + "]" +
         lookup.caption.slice(lookup.offset + lookup.word.length);
+      const nonEnglish = /[\p{Script=Hangul}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u.test(lookup.word);
+      const instruction = nonEnglish ? "Explain this word or expression in English: " : "Explain this English word or expression: ";
       return [
-        "Explain this English word or expression: " + lookup.word.replaceAll("\\", ""),
+        instruction + lookup.word.replaceAll("\\", ""),
         "Context:\n" + captionContext(marked),
       ].join("\n\n");
     }
@@ -298,6 +404,12 @@
       updatePopupPosition();
     });
     copyContext.addEventListener("click", () => copyText(captionContext(lookup.caption)));
+    refreshContext.addEventListener("click", () => changeContext("refresh"));
+    selectContext.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      return changeContext("transcript");
+    });
     copyResult.addEventListener("click", () => {
       if (!view.result) return;
       const {coreMeaning, expression, expressionMeaning, inContext} = view.result;
@@ -337,23 +449,19 @@
     if (masthead) observer.observe(masthead);
 
     const view = {root, body, reading, status, partOfSpeech, coreMeaning, expressionTitle, expressionMeaning,
-      inContext, copyResult, regenerate, observer, anchor, getAnchor, lookup, selection, video};
+      inContext, copyResult, regenerate, refreshContext, selectContext, observer, anchor, getAnchor, lookup, selection, video};
     current = view;
     video?.addEventListener("play", closePopup);
     updateSearch();
     regenerate.addEventListener("click", () => load(view, true));
     if (readPassage) {
-      view.wait = new AbortController();
       status.textContent = "Checking caption context…";
       core.hidden = expression.hidden = contextual.hidden = true;
-      copy.disabled = copyContext.disabled = regenerate.disabled = true;
+      copy.disabled = copyContext.disabled = regenerate.disabled = refreshContext.disabled = selectContext.disabled = true;
       search.removeAttribute("href");
-      readPassage(view.wait.signal).then(passage => {
+      requestContext("initial").then(passage => {
         if (current !== view) return;
-        if (passage) {
-          Object.assign(lookup, passage, {earlier: "", before: "", after: ""});
-          renderContext();
-        }
+        if (passage) applyPassage(passage);
         updateSearch();
         copy.disabled = copyContext.disabled = false;
         load(view, false);
