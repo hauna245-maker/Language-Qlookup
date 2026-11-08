@@ -34,6 +34,14 @@ test("an older response cannot overwrite the currently selected word", async () 
     documentElement: {clientWidth: 800, clientHeight: 600}, addEventListener() {},
   };
   const window = {Qlookup: {popupPlacement: () => ({left: 0, top: 0, maxHeight: 100})}, addEventListener() {}};
+  const localVoice = {lang: "en-GB", localService: true};
+  let spoken;
+  window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
+  window.speechSynthesis = {
+    getVoices: () => [{lang: "en-US", localService: false}, localVoice],
+    cancel() {},
+    speak: utterance => { spoken = utterance; },
+  };
   const requests = [];
   let copied;
   runInNewContext(source, {
@@ -69,6 +77,11 @@ test("an older response cannot overwrite the currently selected word", async () 
   const [, core, expression, context, contextArea] = reading.children;
   assert.equal(header.children[0].textContent, "new");
   assert.equal(header.children[0].children[0].textContent, "noun");
+  header.children[1].listeners.click();
+  assert.equal(spoken.text, "new");
+  assert.equal(spoken.voice, localVoice);
+  await header.children[2].listeners.click();
+  assert.equal(copied, "new");
   assert.equal(core.children[1].textContent, "New meaning");
   assert.equal(core.hidden, false);
   assert.equal(expression.hidden, true);
@@ -82,7 +95,7 @@ test("an older response cannot overwrite the currently selected word", async () 
   await controls.children[4].listeners.click();
   assert.match(copied, /\[new\]/);
   assert.equal(copied, "Explain this English word or expression: new\n\nContext:\nFirst caption Second caption [new] Fourth caption");
-  assert.equal(new URL(controls.children[2].href).searchParams.get("q"), copied);
+  assert.equal(new URL(controls.children[3].href).searchParams.get("q"), copied);
   assert.equal(requests.length, 2);
 
   const video = new EventTarget();

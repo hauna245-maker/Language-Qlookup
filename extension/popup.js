@@ -156,7 +156,6 @@
     regenerate.type = "button";
     regenerate.title = "Regenerate explanation";
     regenerate.setAttribute("aria-label", "Regenerate explanation");
-    header.append(title, regenerate, close);
 
     const status = element("div", "qlookup-status");
     status.setAttribute("role", "status");
@@ -207,6 +206,13 @@
       return action;
     }
     const copyIcon = "M8 8h12v12H8z M16 8V4H4v12h4";
+    const pronounce = iconAction("button", "Pronounce word", "M3 9h4l5-4v14l-5-4H3z M16 9a4 4 0 0 1 0 6 M19 6a8 8 0 0 1 0 12");
+    const copyWord = iconAction("button", "Copy word", copyIcon);
+    for (const action of [pronounce, copyWord]) {
+      action.type = "button";
+      action.className += " qlookup-word-action";
+    }
+    header.append(title, pronounce, copyWord, regenerate, close);
     function meaningCopy(heading, label, getText) {
       const action = iconAction("button", label, copyIcon);
       action.type = "button";
@@ -268,6 +274,29 @@
       }
       updatePopupPosition();
     }
+    copyWord.addEventListener("click", () => copyText(lookup.word));
+    pronounce.addEventListener("click", () => {
+      const speech = window.speechSynthesis;
+      if (!speech || !window.SpeechSynthesisUtterance) {
+        copyStatus.textContent = "Pronunciation is unavailable in this browser.";
+        updatePopupPosition();
+        return;
+      }
+      const utterance = new window.SpeechSynthesisUtterance(lookup.word);
+      const englishVoices = speech.getVoices().filter(voice => /^en(?:-|$)/iu.test(voice.lang));
+      const voice = englishVoices.find(item => item.localService) || englishVoices[0];
+      if (voice) utterance.voice = voice;
+      utterance.lang = voice?.lang || "en-US";
+      utterance.onerror = event => {
+        if (current !== view || ["canceled", "interrupted"].includes(event.error)) return;
+        copyStatus.textContent = "Could not play pronunciation. Check your browser’s speech voices.";
+        updatePopupPosition();
+      };
+      copyStatus.textContent = "";
+      speech.cancel();
+      speech.speak(utterance);
+      updatePopupPosition();
+    });
     copyContext.addEventListener("click", () => copyText(captionContext(lookup.caption)));
     copyResult.addEventListener("click", () => {
       if (!view.result) return;
@@ -289,7 +318,7 @@
       copyStatus.textContent = "Could not open extension options. Refresh YouTube and try again.";
       updatePopupPosition();
     });
-    controls.append(settings, copyResult, search, link, copy);
+    controls.append(settings, copyResult, link, search, copy);
     reading.append(status, core, expression, contextual, contextArea);
     body.append(header, reading, controls, copyStatus);
     root.append(body);

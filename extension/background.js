@@ -2,7 +2,7 @@ export const models = {
   "gemini-3.8-flash": "Gemini 3.8 Flash",
   "gemini-3.5-flash-lite": "Gemini 3.5 Flash-Lite",
 };
-export const defaultModel = "gemini-3.8-flash";
+export const defaultModel = "gemini-3.5-flash-lite";
 export const validModel = model => Object.hasOwn(models, model);
 
 const CACHE_VERSION = "9";
@@ -110,7 +110,7 @@ async function generate(fetcher, model, apiKey, lookup, now) {
             responseMimeType: "application/json",
             responseSchema: schema,
             maxOutputTokens: 2048,
-            thinkingConfig: {thinkingLevel: model === defaultModel ? "low" : "minimal"},
+            thinkingConfig: {thinkingLevel: model === "gemini-3.5-flash-lite" ? "minimal" : "low"},
           },
         }),
       },

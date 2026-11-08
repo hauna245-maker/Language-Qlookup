@@ -71,9 +71,19 @@
 #qlookup-popup .qlookup-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 6px;
 }
+#qlookup-popup .qlookup-header .qlookup-title { min-width: 0; }
+#qlookup-popup .qlookup-action.qlookup-word-action {
+  flex-shrink: 0;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
+  background: transparent;
+}
+#qlookup-popup .qlookup-action.qlookup-word-action:hover,
+#qlookup-popup .qlookup-action.qlookup-word-action:focus-visible { background: #414854; }
+#qlookup-popup .qlookup-action.qlookup-word-action svg { width: 16px; height: 16px; }
 #qlookup-popup .qlookup-controls {
   display: flex;
   flex-wrap: wrap;
