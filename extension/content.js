@@ -96,7 +96,31 @@
   window.addEventListener("resize", clearHover);
   document.addEventListener("fullscreenchange", clearHover);
 
+  let captionPress;
+  document.addEventListener("pointerdown", event => {
+    if (!event.isPrimary) return;
+    captionPress = event.button === 0 && event.target instanceof Element &&
+      event.target.closest(".caption-window")
+      ? {id: event.pointerId, x: event.clientX, y: event.clientY, dragged: false}
+      : null;
+  }, true);
+
+  function trackCaptionDrag(event) {
+    if (captionPress?.id === event.pointerId &&
+        Math.hypot(event.clientX - captionPress.x, event.clientY - captionPress.y) >= 6) {
+      captionPress.dragged = true;
+    }
+  }
+  document.addEventListener("pointermove", trackCaptionDrag, true);
+  document.addEventListener("pointerup", trackCaptionDrag, true);
+  document.addEventListener("pointercancel", event => {
+    if (captionPress?.id === event.pointerId) captionPress = null;
+  }, true);
+
   document.addEventListener("click", event => {
+    const dragged = captionPress?.dragged;
+    captionPress = null;
+    if (dragged) return;
     if (!(event.target instanceof Element) || isPopupElement(event.target)) return;
     const selection = captions.getLookup(event);
     if (!selection) return;

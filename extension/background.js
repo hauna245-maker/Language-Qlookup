@@ -1,6 +1,6 @@
 export const models = {
-  "gemini-3.8-flash": "Gemini 3.8 Flash",
   "gemini-3.5-flash-lite": "Gemini 3.5 Flash-Lite",
+  "gemini-3.8-flash": "Gemini 3.8 Flash",
 };
 export const defaultModel = "gemini-3.5-flash-lite";
 export const validModel = model => Object.hasOwn(models, model);
