@@ -252,6 +252,7 @@
       const {player, videoId} = playerState();
       let originalLanguage = "";
       let multipleGenerated = false;
+      let captionLanguage = "";
       try {
         const response = player?.getPlayerResponse?.();
         if (videoId && response?.videoDetails?.videoId === videoId) {
@@ -271,11 +272,15 @@
               ...(Array.isArray(tracks) ? tracks : []),
             ]);
           }
+          const activeTrack = player.getOption?.("captions", "track");
+          const translation = activeTrack?.translationLanguage;
+          captionLanguage = knownLanguage(typeof translation === "string"
+            ? translation : translation?.languageCode || activeTrack?.languageCode);
         }
       } catch {
         // Leave captions visible if the original language cannot be identified.
       }
-      window.postMessage({type: "qlookup:caption-language", videoId, originalLanguage, multipleGenerated}, location.origin);
+      window.postMessage({type: "qlookup:caption-language", videoId, originalLanguage, multipleGenerated, captionLanguage}, location.origin);
       return;
     }
     if (data?.type !== "qlookup:passage-request" || typeof data.caption !== "string" ||

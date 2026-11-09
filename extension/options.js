@@ -10,6 +10,11 @@ const captionLanguages = [...document.querySelectorAll('input[name="caption-lang
 const filterCaptionLanguages = document.querySelector("#filter-caption-languages");
 const captionLanguageList = document.querySelector("#caption-language-list");
 const autoSelectOriginal = document.querySelector("#auto-select-original");
+const explanationLanguage = document.querySelector("#explanation-language");
+const alternateExplanation = document.querySelector("#alternate-explanation");
+const alternateSettings = document.querySelector("#alternate-explanation-settings");
+const alternateLanguage = document.querySelector("#alternate-explanation-language");
+const alternateSources = document.querySelector("#alternate-explanation-sources");
 const reveal = document.querySelector("#reveal");
 const remove = document.querySelector("#delete");
 const feedback = document.querySelector("#feedback");
@@ -34,6 +39,23 @@ async function refresh() {
   filterCaptionLanguages.checked = settings.filterCaptionLanguages;
   captionLanguageList.disabled = !filterCaptionLanguages.checked;
   autoSelectOriginal.checked = settings.autoSelectOriginalCaptions;
+  const languages = Object.entries(settings.explanationLanguages);
+  for (const select of [explanationLanguage, alternateLanguage]) {
+    select.replaceChildren(...languages.map(([code, label]) => new Option(label, code)));
+  }
+  explanationLanguage.value = settings.explanationLanguage;
+  alternateLanguage.value = settings.alternateExplanationLanguage;
+  alternateExplanation.checked = settings.alternateExplanationEnabled;
+  alternateSettings.disabled = !alternateExplanation.checked;
+  alternateSources.replaceChildren(...languages.map(([code, name]) => {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = code;
+    input.checked = settings.alternateExplanationSources.includes(code);
+    label.append(input, " " + name);
+    return label;
+  }));
   key.value = settings.key;
   remove.disabled = !settings.hasKey;
   document.querySelector("#key-status").textContent = settings.hasKey
@@ -67,10 +89,17 @@ form.addEventListener("submit", event => {
     captionLanguages: captionLanguages.filter(input => input.checked).map(input => input.value),
     filterCaptionLanguages: filterCaptionLanguages.checked,
     autoSelectOriginalCaptions: autoSelectOriginal.checked,
+    explanationLanguage: explanationLanguage.value,
+    alternateExplanationEnabled: alternateExplanation.checked,
+    alternateExplanationLanguage: alternateLanguage.value,
+    alternateExplanationSources: [...alternateSources.querySelectorAll("input:checked")].map(input => input.value),
   }), "Settings saved.");
 });
 filterCaptionLanguages.addEventListener("change", () => {
   captionLanguageList.disabled = !filterCaptionLanguages.checked;
+});
+alternateExplanation.addEventListener("change", () => {
+  alternateSettings.disabled = !alternateExplanation.checked;
 });
 
 remove.addEventListener("click", () => update(() => send("delete"), "Saved key deleted."));

@@ -8,13 +8,13 @@
   const clearHover = () => hover?.remove();
   const hiddenClass = "language-qlookup-hide-captions";
   let allowedCaptions;
+  let captionLanguage = "";
   let filterCaptionLanguages = true;
   let autoSelectOriginal = false;
   let checkedAt = -Infinity;
 
   function checkCaptionLanguage() {
-    if (!allowedCaptions || (!filterCaptionLanguages && !autoSelectOriginal) ||
-        performance.now() - checkedAt < 500) return;
+    if (!allowedCaptions || performance.now() - checkedAt < 500) return;
     checkedAt = performance.now();
     window.postMessage({type: "qlookup:caption-language-request",
       autoSelectLanguages: autoSelectOriginal && filterCaptionLanguages ? allowedCaptions : [],
@@ -47,12 +47,14 @@
         data.videoId !== new URL(location.href).searchParams.get("v")) return;
     if (!allowedCaptions) return;
     const language = data.originalLanguage;
+    captionLanguage = data.captionLanguage || language || "";
     const hide = filterCaptionLanguages &&
       (language ? !allowedCaptions.includes(language) : data.multipleGenerated === true);
     document.documentElement.classList.toggle(hiddenClass, hide);
   });
   window.addEventListener("focus", refreshCaptionSetting);
   document.addEventListener("yt-navigate-start", () => {
+    captionLanguage = "";
     document.documentElement.classList.remove(hiddenClass);
     checkedAt = -Infinity;
   });
@@ -143,6 +145,7 @@
     if (!(event.target instanceof Element) || isPopupElement(event.target)) return;
     const selection = captions.getLookup(event);
     if (!selection) return;
+    selection.lookup.sourceLanguage = captionLanguage;
     event.stopPropagation();
     const video = selection.anchor.closest("#movie_player")?.querySelector("video");
     video?.pause();

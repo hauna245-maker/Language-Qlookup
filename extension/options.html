@@ -40,6 +40,7 @@
   .language-list legend { padding: 0; font-size: 0.9rem; }
   .language-list label { display: flex; align-items: center; gap: 0.5rem; }
   .language-list:disabled { opacity: 0.55; }
+  .explanation-sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 0.35rem; }
 </style>
 <main>
   <h1>Language Qlookup Options</h1>
@@ -56,6 +57,19 @@
       <label for="model">Gemini model</label>
       <select id="model"></select>
       <button type="button" id="delete">Delete saved key</button>
+    </fieldset>
+    <fieldset>
+      <legend>Explanation language</legend>
+      <label for="explanation-language">Default language</label>
+      <select id="explanation-language"></select>
+      <label class="switch-row">Use an alternate explanation language <input type="checkbox" role="switch" id="alternate-explanation"><span class="switch" aria-hidden="true"></span></label>
+      <fieldset id="alternate-explanation-settings" class="language-list" disabled>
+        <legend>Alternate language</legend>
+        <label for="alternate-explanation-language">Explain in</label>
+        <select id="alternate-explanation-language"></select>
+        <p class="hint">Use this language for words in the caption languages checked below.</p>
+        <div id="alternate-explanation-sources" class="explanation-sources"></div>
+      </fieldset>
     </fieldset>
     <fieldset>
       <legend>Playback shortcuts</legend>

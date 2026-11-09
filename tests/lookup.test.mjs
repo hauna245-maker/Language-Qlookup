@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {cacheKey, createLookupService, normalizeLookup, validateExplanation} from "../extension/background.js";
+import {cacheKey, createLookupService, normalizeLookup, outputLanguageFor, validateExplanation} from "../extension/background.js";
 
 const model = "gemini-3.8-flash";
 const word = "get";
@@ -10,6 +10,31 @@ const value = {
   partOfSpeech: "verb", coreMeaning: "An idea reaches you and makes sense.",
   expression: "", expressionMeaning: "", inContext: "",
 };
+
+test("the alternate explanation applies only to selected source languages", () => {
+  const settings = {
+    explanationLanguage: "en", alternateExplanationLanguage: "ja",
+    alternateExplanationEnabled: true, alternateExplanationSources: ["ko", "es"],
+  };
+  assert.equal(outputLanguageFor({word: "안녕", sourceLanguage: "en"}, settings), "ja");
+  assert.equal(outputLanguageFor({word: "hola", sourceLanguage: "es"}, settings), "ja");
+  assert.equal(outputLanguageFor({word: "привет", sourceLanguage: "ru"}, settings), "en");
+  assert.equal(outputLanguageFor({word: "안녕"}, {...settings, alternateExplanationEnabled: false}), "en");
+});
+
+test("explanation languages get separate requests and cache entries", async () => {
+  const prompts = [];
+  const service = createLookupService(memoryStorage(), async (_url, request) => {
+    prompts.push(JSON.parse(request.body).systemInstruction.parts[0].text);
+    return generated();
+  });
+  assert.equal((await service(model, "fake", lookup, false, "en")).cached, false);
+  assert.equal((await service(model, "fake", lookup, false, "ja")).cached, false);
+  assert.equal((await service(model, "fake", lookup, false, "ja")).cached, true);
+  assert.equal(prompts.length, 2);
+  assert.match(prompts[0], /explanations in English/);
+  assert.match(prompts[1], /explanations in Japanese/);
+});
 
 test("expressions must include the clicked occurrence in the caption", () => {
   const response = {...value, expression: "springing up", expressionMeaning: "Appearing suddenly.", inContext: "Lines appear."};
